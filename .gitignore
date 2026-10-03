@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Entorno
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# Logs de IA
+ai-logs/*.json
+!ai-logs/.gitkeep
+
+# Sistema
+Thumbs.db
+.DS_Store
