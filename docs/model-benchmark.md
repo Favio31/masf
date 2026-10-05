@@ -1,6 +1,6 @@
 # MASF Model Benchmark
 
-**Fecha**: 2026-10-05T10:09:31.280635  
+**Fecha**: 2026-10-05T11:56:38.775702  
 **Fixture**: `fixtures/sponsor_01.txt`  
 **Modelos evaluados**: qwen3:4b-instruct, smollm2:1.7b
 
@@ -10,12 +10,12 @@
 
 ```json
 {
-  "sponsor_name": "Trek Bicycle Corporation",
-  "program_name": "Trek Seed Grant",
-  "amount": 25000,
-  "deadline": "2026-11-30",
-  "website": "https://www.trekbikes.com/grants",
-  "email": "grants@trekbikes.com"
+  "sponsor_name": "New Belgium Brewing Company",
+  "program_name": "Bicycle Advocacy Grant Program",
+  "amount": 20000,
+  "deadline": "2026-03-31",
+  "website": "https://grantstation.com/grantmakers/new-belgium-bicycle-advocacy-grant",
+  "email": "grants@newbelgium.com"
 }
 ```
 
@@ -23,12 +23,14 @@
 
 ```json
 {
-  "sponsor_name": "Trek Bicycle Corporation",
-  "program_name": "Trek Seed Grant",
-  "amount": 25000,
-  "deadline": "2026-11-30",
-  "website": "https://www.trekbikes.com/grants",
-  "email": "grants@trekbikes.com"
+  "sponsor_name": "New Belgium Brewing Company",
+  "program_name": "FY2026 Bicycle Advocacy Grant Program",
+  "amount": 20000,
+  "deadline": "2026-03-31",
+  "website": "https://grantstation.com/grantmakers/new-belgium-bicycle-advocacy-grant",
+  "email": "grants@newbelgium.com",
+  "website_url": "https://grantstation.com/grantmakers/new-belgium-bicycle-advocacy-grant",
+  "email_address": "grants@newbelgium.com"
 }
 ```
 

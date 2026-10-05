@@ -7,10 +7,11 @@ Regla de Oro: Temperatura 0.0, LLM extrae, Python decide
 """
 import json
 import ollama
-...
+from pathlib import Path
+from datetime import datetime
 
 # Configuración
-FIXTURE = Path("fixtures/sponsor_01.txt")
+FIXTURE = Path("fixtures/sponsor_real_01.txt")
 OUTPUT = Path("docs/model-benchmark.md")
 MODELS = ["qwen3:4b-instruct", "smollm2:1.7b"]
 
