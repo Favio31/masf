@@ -15,105 +15,116 @@ FIXTURE = Path("fixtures/sponsor_real_01.txt")
 OUTPUT = Path("docs/model-benchmark.md")
 MODELS = ["qwen3:4b-instruct", "smollm2:1.7b"]
 
-# Prompt canónico (temperatura 0.0, extracción estructurada)
-PROMPT = """Extrae la siguiente información del texto en formato JSON estricto.
-Si un campo no existe, usa null. No inventes datos.
+# Prompt canónico multi-entity (temperatura 0.0, extracción estructurada)
+PROMPT = """Extrae TODAS las oportunidades de financiamiento/patrocinio del texto en formato JSON.
 
-Campos requeridos:
+Si hay múltiples oportunidades, devuelve un array JSON con cada una.
+Si solo hay una, devuelve un array con un solo elemento.
+
+Cada elemento debe tener estos campos:
 - sponsor_name: nombre de la organización
-- program_name: nombre del programa de patrocinio
-- amount: monto máximo en USD (solo número)
+- program_name: nombre del programa
+- amount: monto máximo en USD/EUR (solo número)
 - deadline: fecha límite (formato YYYY-MM-DD)
 - website: URL oficial
-- email: correo de contacto
+- email: email de contacto
 
-Texto:
-{text}
+Si un campo no existe, usa null. No inventes datos.
+Devuelve SOLO el JSON, sin texto adicional.
+"""
 
-Responde SOLO con JSON válido, sin explicaciones."""
 
-def read_fixture():
-    """Lee el archivo de prueba"""
-    return FIXTURE.read_text(encoding="utf-8")
-
-def extract_with_model(model: str, text: str) -> dict:
-    """Extrae datos usando un modelo específico"""
+def extract(model: str, text: str) -> list:
+    """Llama al modelo local y devuelve lista de entidades extraídas."""
     try:
         response = ollama.chat(
             model=model,
-            messages=[{"role": "user", "content": PROMPT.format(text=text)}],
-            options={"temperature": 0.0}
+            messages=[{"role": "user", "content": f"{PROMPT}\n\n{text}"}],
+            options={"temperature": 0.0, "num_ctx": 4096},
         )
         content = response["message"]["content"].strip()
-        
-        # Limpiar respuesta (quitar markdown code blocks si existen)
+
+        # Limpiar markdown fences si el modelo las agrega
         if content.startswith("```"):
-            content = content.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        
-        return json.loads(content)
+            lines = content.split("\n")
+            content = "\n".join(lines[1:-1]) if lines[-1].startswith("```") else "\n".join(lines[1:])
+
+        result = json.loads(content)
+
+        # Normalizar: si es dict único, convertir a lista
+        if isinstance(result, dict):
+            result = [result]
+        elif isinstance(result, list):
+            pass
+        else:
+            result = []
+
+        return result
+
+    except json.JSONDecodeError as e:
+        print(f"   ⚠️  JSON inválido: {e}")
+        print(f"      Raw: {content[:200]}")
+        return []
     except Exception as e:
-        return {"error": str(e)}
+        print(f"   ❌ Error: {e}")
+        return []
+
 
 def run_benchmark():
-    """Ejecuta el benchmark completo"""
-    text = read_fixture()
-    results = {}
-    
-    print(f" Benchmark iniciado: {datetime.now().isoformat()}")
+    """Ejecuta el benchmark y genera reporte Markdown."""
+    text = FIXTURE.read_text(encoding="utf-8")
     print(f"📄 Fixture: {FIXTURE}")
-    print(f" Modelos: {MODELS}\n")
-    
+    print(f"🤖 Modelos: {MODELS}")
+    print()
+
+    results = {}
     for model in MODELS:
         print(f"⏳ Probando {model}...")
-        result = extract_with_model(model, text)
-        results[model] = result
-        
-        # Mostrar resultado
-        if "error" in result:
-            print(f"   ❌ Error: {result['error']}")
+        entities = extract(model, text)
+
+        if entities:
+            print(f"   ✅ {len(entities)} entidad(es) extraída(s)")
+            for i, e in enumerate(entities, 1):
+                print(f"      [{i}] Sponsor: {e.get('sponsor_name')}")
+                print(f"          Monto: {e.get('amount')}")
+                print(f"          Deadline: {e.get('deadline')}")
+                print(f"          Website: {e.get('website')}")
+                print(f"          Email: {e.get('email')}")
         else:
-            print(f"   ✅ Extracción exitosa")
-            print(f"      Sponsor: {result.get('sponsor_name', 'N/A')}")
-            print(f"      Monto: {result.get('amount', 'N/A')} USD")
-            print(f"      Deadline: {result.get('deadline', 'N/A')}")
-    
-    # Generar reporte
-    generate_report(results)
-    print(f"\n Reporte generado: {OUTPUT}")
+            print(f"   ❌ Sin resultados")
 
-def generate_report(results: dict):
-    """Genera el reporte en Markdown"""
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    
-    report = f"""# MASF Model Benchmark
+        results[model] = entities
+        print()
 
-**Fecha**: {datetime.now().isoformat()}  
-**Fixture**: `fixtures/sponsor_01.txt`  
-**Modelos evaluados**: {', '.join(MODELS)}
+    # Generar reporte Markdown
+    now = datetime.now().isoformat()
+    md = f"# MASF Model Benchmark\n\n"
+    md += f"**Fecha**: {now}\n"
+    md += f"**Fixture**: `{FIXTURE}`\n"
+    md += f"**Modelos evaluados**: {', '.join(MODELS)}\n\n"
+    md += "## Resultados\n\n"
 
-## Resultados
-
-"""
-    for model, result in results.items():
-        report += f"### {model}\n\n"
-        if "error" in result:
-            report += f"**Error**: {result['error']}\n\n"
+    for model, entities in results.items():
+        md += f"### {model}\n\n"
+        if entities:
+            md += f"**{len(entities)} entidad(es) extraída(s)**\n\n"
+            for i, e in enumerate(entities, 1):
+                md += f"#### Entidad {i}\n\n"
+                md += "```json\n"
+                md += json.dumps(e, indent=2, ensure_ascii=False)
+                md += "\n```\n\n"
         else:
-            report += f"```json\n{json.dumps(result, indent=2, ensure_ascii=False)}\n```\n\n"
-    
-    report += """## Criterios de Evaluación
+            md += "*Sin resultados*\n\n"
 
-- **Precisión**: ¿Los datos extraídos coinciden con el texto fuente?
-- **Formato**: ¿El JSON es válido y sigue el esquema esperado?
-- **Alucinaciones**: ¿Inventó datos que no están en el texto?
-- **Grounding**: ¿Puede citar la fuente exacta de cada dato?
+    md += "## Criterios de Evaluación\n\n"
+    md += "- **Precisión**: ¿Los datos extraídos coinciden con el texto fuente?\n"
+    md += "- **Formato**: ¿El JSON es válido y sigue el esquema esperado?\n"
+    md += "- **Alucinaciones**: ¿Inventó datos que no están en el texto?\n"
+    md += "- **Grounding**: ¿Puede citar la fuente exacta de cada dato?\n"
 
-## Próximo Paso
+    OUTPUT.write_text(md, encoding="utf-8")
+    print(f"📝 Reporte generado: {OUTPUT}")
 
-Validar resultados con `core/grounding_validator.py` para verificar citas literales.
-"""
-    
-    OUTPUT.write_text(report, encoding="utf-8")
 
 if __name__ == "__main__":
     run_benchmark()
