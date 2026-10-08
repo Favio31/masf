@@ -124,7 +124,11 @@ REGLAS ESTRICTAS:
         "model": MODEL_NAME,
         "prompt": prompt,
         "stream": False,
-        "format": "json"
+        "format": "json",
+        "options": {
+            "temperature": 0.0,
+            "num_ctx": 8192
+        }
     }
 
     for attempt in range(MAX_RETRIES):

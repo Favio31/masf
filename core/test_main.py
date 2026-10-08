@@ -13,9 +13,9 @@ def test_process_source_end_to_end():
     
     # Mock del extractor
     mock_extract = {
-        "deadline": {"value": "15 de marzo de 2027", "quote": "El plazo es el 15 de marzo de 2027"},
-        "amount": {"value": "50.000 euros", "quote": "Monto: 50.000 euros"}
-    }
+    "deadline": {"value": "2027-03-15", "quote": "El plazo es el 15 de marzo de 2027"},
+    "amount": {"value": "50.000 euros", "quote": "Monto: 50.000 euros"}
+}
     
     with patch('core.main.fetch_source', return_value=mock_fetch), \
          patch('core.main.extract_data', return_value=mock_extract):

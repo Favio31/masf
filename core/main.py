@@ -9,6 +9,7 @@ import json
 import sys
 import os
 import hashlib
+import requests
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -120,8 +121,18 @@ def infer_field_type(field_name: str) -> str:
     return "text"
 
 
+def is_url_live(url: str) -> bool:
+    """Verifica que una URL esté viva (no sea un enlace roto / Link Rot)."""
+    try:
+        # Hacemos un request HEAD rápido (no descarga el contenido, solo verifica que existe)
+        response = requests.head(url, timeout=5, allow_redirects=True)
+        return response.status_code < 400  # 200, 301, 302 son válidos
+    except requests.exceptions.RequestException:
+        return False
+
+
 def validate_field_format(field_type: str, value: str, current_status: str) -> str:
-    """Valida formato y devuelve el peor estado entre current_status y validación."""
+    """Valida formato y, en el caso de URLs, que estén vivas."""
     if current_status == "missing":
         return current_status
     
@@ -131,7 +142,9 @@ def validate_field_format(field_type: str, value: str, current_status: str) -> s
     elif field_type == "email":
         is_valid = validate_email(value)
     elif field_type == "url":
-        is_valid = validate_url(value)
+        # Primero validamos el formato, luego que esté viva
+        is_valid_format = validate_url(value)
+        is_valid = is_valid_format and is_url_live(value)
     else:
         return current_status
     

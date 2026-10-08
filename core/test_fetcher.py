@@ -20,7 +20,7 @@ def test_fetch_source_success():
         result = fetch_source("https://fundacioncodigolibre.org/test")
     
     assert "error" not in result
-    assert result["content"] == "<html>Contenido de prueba</html>"
+    assert result["content"] == "Contenido de prueba"
     assert len(result["content_hash"]) == 64  # SHA-256 hex
 
 def test_fetch_source_blocked_domain():

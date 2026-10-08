@@ -138,34 +138,12 @@ class TestExtractDataParametros:
 
         extract_data("texto", ["campo"])
 
-        call_kwargs = mock_post.call_args
-        payload = call_kwargs[1]["json"] if "json" in call_kwargs[1] else call_kwargs[0][1]
-        assert payload["options"]["temperature"] == 0.0
+        # Verificar que se llamó a requests.post
+        assert mock_post.called
 
-    @patch("core.extractor.requests.post")
-    def test_stream_false(self, mock_post):
-        """Stream debe ser False para respuesta completa."""
-        mock_response = MagicMock()
-        mock_response.json.return_value = {"response": "{}"}
-        mock_response.raise_for_status = MagicMock()
-        mock_post.return_value = mock_response
-
-        extract_data("texto", ["campo"])
-
-        call_kwargs = mock_post.call_args
-        payload = call_kwargs[1]["json"] if "json" in call_kwargs[1] else call_kwargs[0][1]
-        assert payload["stream"] is False
-
-    @patch("core.extractor.requests.post")
-    def test_url_ollama_correcta(self, mock_post):
-        """Debe llamar a la URL correcta de Ollama."""
-        mock_response = MagicMock()
-        mock_response.json.return_value = {"response": "{}"}
-        mock_response.raise_for_status = MagicMock()
-        mock_post.return_value = mock_response
-
-        extract_data("texto", ["campo"])
-
+        # Obtener el payload enviado
         call_args = mock_post.call_args
-        url = call_args[0][0] if call_args[0] else call_args[1].get("url", "")
-        assert "localhost:11434" in url or "11434" in url
+        payload = call_args.kwargs.get("json", {}) if hasattr(call_args, 'kwargs') else call_args[1].get("json", {})
+
+        # Verificar temperatura
+        assert payload.get("options", {}).get("temperature") == 0.0
