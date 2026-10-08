@@ -1,0 +1,46 @@
+{
+  "source_file": "fixtures\\sponsor_01.txt",
+  "content_hash": "0bac7e72fec036496af131e7116dac9f37c94409e2325f7d17b6d7478514b956",
+  "fields": [
+    {
+      "field": "nombre",
+      "value": "Trek Seed Grant",
+      "quote": "un programa de patrocinio deportivo llamado \"Trek Seed Grant\"",
+      "status": "verified",
+      "field_type": "text",
+      "chunk_offset": 0
+    },
+    {
+      "field": "monto",
+      "value": "25.000 USD",
+      "quote": "otorga hasta 25.000 USD anuales",
+      "status": "verified",
+      "field_type": "text",
+      "chunk_offset": 0
+    },
+    {
+      "field": "fecha",
+      "value": "30 de noviembre de 2026",
+      "quote": "El plazo límite para la presentación de solicitudes es el 30 de noviembre de 2026.",
+      "status": "unverified",
+      "field_type": "date",
+      "chunk_offset": 0
+    },
+    {
+      "field": "website",
+      "value": "https://www.trekbikes.com/grants",
+      "quote": "Para más detalles, visite https://www.trekbikes.com/grants",
+      "status": "verified",
+      "field_type": "url",
+      "chunk_offset": 0
+    },
+    {
+      "field": "email",
+      "value": "grants@trekbikes.com",
+      "quote": "contacte a grants@trekbikes.com",
+      "status": "verified",
+      "field_type": "email",
+      "chunk_offset": 0
+    }
+  ]
+}

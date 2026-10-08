@@ -22,7 +22,9 @@
 
 
 
-MASF es un framework de código abierto para la extracción, validación y curación automatizada de oportunidades deportivas (sponsors, grants, convocatorias) usando \*\*IA local soberana\*\* (Ollama + Qwen3/SmolLM2) con \*\*cero alucinaciones\*\* y \*\*cero dependencia de APIs externas\*\*.
+MASF es un framework de código abierto para la extracción, validación y curación automatizada de oportunidades deportivas (sponsors, grants, convocatorias) usando **IA local soberana** (Ollama + Qwen3-4B-Instruct + SmolLM2-1.7B) con **validación anti-alucinaciones basada en citas literales** y **cero dependencia de APIs externas**.
+
+> **Nota de transparencia:** MASF no garantiza "cero alucinaciones". Toda afirmación extraída se valida contra la cita literal del texto fuente. Si el valor no está respaldado por una cita verificable, el campo se marca explícitamente como `unverified` o se rechaza. El fuzzy match está **[PLANIFICADO]** para futuras versiones.
 
 
 
@@ -106,7 +108,7 @@ masf/
 
 \# Clonar el repositorio
 
-git clone https://github.com/tu-usuario/masf.git
+git clone https://github.com/Favio31/masf.git
 
 cd masf
 

@@ -2,11 +2,14 @@
 Core fetcher.
 Descarga fuentes con allowlist de dominios y guarda snapshots con hash SHA-256.
 Único componente con acceso a red (Pilar 1).
+Incluye limpieza de HTML para mitigar inyección de scripts (T05).
 """
 import hashlib
 import requests
 from urllib.parse import urlparse
 from datetime import datetime, timezone
+from bs4 import BeautifulSoup
+
 
 ALLOWLIST = [
     "fundacioncodigolibre.org",
@@ -26,11 +29,30 @@ def is_domain_allowed(url: str) -> bool:
     return domain in ALLOWLIST
 
 
+def clean_html(raw_html: str) -> str:
+    """
+    Limpia HTML extrayendo solo texto visible.
+    Mitiga T05: HTML malicioso (XSS/script) en fuente.
+    """
+    soup = BeautifulSoup(raw_html, "html.parser")
+    
+    # Eliminar scripts y estilos
+    for script in soup(["script", "style", "noscript", "iframe"]):
+        script.decompose()
+    
+    # Extraer texto
+    text = soup.get_text(separator="\n", strip=True)
+    
+    # Limpiar líneas vacías múltiples
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return "\n".join(lines)
+
+
 def fetch_source(url: str) -> dict:
     """
     Descarga la URL y devuelve un dict con:
-    - content: texto descargado
-    - content_hash: SHA-256 del contenido
+    - content: texto limpio (sin HTML)
+    - content_hash: SHA-256 del contenido limpio
     - retrieved_at: timestamp ISO
     - source_url: URL original
     """
@@ -42,7 +64,11 @@ def fetch_source(url: str) -> dict:
         response = requests.get(url, headers=headers, timeout=30)
         response.raise_for_status()
 
-        content = response.text
+        # Limpiar HTML (mitiga T05)
+        raw_html = response.text
+        content = clean_html(raw_html)
+
+        # Hash del contenido LIMPIO (no del HTML crudo)
         content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
 
         return {

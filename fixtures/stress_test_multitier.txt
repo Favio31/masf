@@ -1,0 +1,29 @@
+⚠️ DATO SINTÉTICO — Prueba técnica de estrés, no es una convocatoria real.
+⚠️ SYNTHETIC DATA — Stress test only, not a real grant opportunity.
+
+Global Adventure Sports Foundation (GASF) announces its 2026 Multi-Tier Support Program for independent cyclists, hikers, and expedition athletes.
+
+The program offers three levels of financial support:
+
+TIER 1 — Explorer Grant
+Amount: €15,000
+Deadline: October 15, 2026
+Eligibility: Solo cyclists or hikers planning expeditions of 30+ days in remote regions.
+Apply at: https://gasf.example.org/explorer-grant
+Contact: explorer@gasf.example.org
+
+TIER 2 — Expedition Grant
+Amount: €20,000
+Deadline: October 30, 2026
+Eligibility: Small teams (2-4 people) undertaking multi-month expeditions with documented community impact.
+Apply at: https://gasf.example.org/expedition-grant
+Contact: expedition@gasf.example.org
+
+TIER 3 — Legacy Grant
+Amount: €50,000
+Deadline: November 20, 2026
+Eligibility: Established athletes or organizations with 5+ years of documented work in underserved regions, proposing scalable community projects.
+Apply at: https://gasf.example.org/legacy-grant
+Contact: legacy@gasf.example.org
+
+All tiers require a detailed expedition plan, budget breakdown, and proof of prior outdoor experience. Decisions will be announced 30 days after each deadline.

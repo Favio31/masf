@@ -23,11 +23,15 @@ def verify_quote(source_text: str, quote: str, threshold: float = 0.95) -> bool:
     return False
 
 def determine_status(quote_verified: bool, value: str = None) -> str:
-    """
-    Determina el estado del campo según la verificación.
-    """
-    if quote_verified:
-        return "verified"
+    """Determina el estado del campo según la verificación."""
+    
+    # Primero: verificar si hay valor
     if value is None:
         return "missing"
+    
+    # Segundo: verificar si la cita respalda el valor
+    if quote_verified:
+        return "verified"
+    
+    # Tercero: valor existe pero cita no verificada
     return "unverified"
