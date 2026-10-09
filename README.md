@@ -30,6 +30,7 @@ MASF es un framework de código abierto para la extracción, validación y curac
 
 ### Principios de diseño
 - **Human-in-the-Loop**: El MASF es una herramienta de pre-curaduría. Toda extracción requiere aprobación humana final antes de su publicación.
+
 - **Software Soberano**: 100% local, sin vendor lock-in, sin rastreadores.
 - **Regla de Oro**: El LLM extrae, Python decide, Humano aprueba.
 - **Copyleft fuerte**: GNU AGPLv3.

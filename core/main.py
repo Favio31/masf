@@ -20,11 +20,15 @@ from core.schemas import validate_date, validate_email, validate_url
 DRAFTS_DIR = Path("drafts")
 PUBLISHED_DIR = Path("published")
 
+
 def ensure_dirs():
+    """Asegura que existan los directorios de drafts y published."""
     DRAFTS_DIR.mkdir(exist_ok=True)
     PUBLISHED_DIR.mkdir(exist_ok=True)
 
+
 def process_source(url: str, fields: list[str]) -> dict:
+    """Pipeline completo para URL."""
     fetch_result = fetch_source(url)
     if "error" in fetch_result:
         return {"error": fetch_result["error"]}
@@ -34,7 +38,9 @@ def process_source(url: str, fields: list[str]) -> dict:
     
     return _extract_from_chunks(content, chunks, fields, source_url=url)
 
+
 def process_local_file(filepath: str, fields: list[str]) -> dict:
+    """Pipeline para archivo local (sin fetcher)."""
     path = Path(filepath)
     if not path.exists():
         return {"error": f"Archivo no encontrado: {filepath}"}
@@ -45,28 +51,40 @@ def process_local_file(filepath: str, fields: list[str]) -> dict:
     
     return _extract_from_chunks(content, chunks, fields, source_file=filepath, content_hash=content_hash)
 
+
 def _extract_from_chunks(content: str, chunks: list, fields: list[str], **metadata) -> dict:
     """Lógica central de extracción y validación."""
     all_results = []
+    
     for chunk in chunks:
         extraction = extract_data(chunk["text"], fields)
-        if "error" not in extraction:
-            for field, data in extraction.items():
-                quote_verified = verify_quote(chunk["text"], data.get("quote", ""), data.get("value", ""))
-                status = determine_status(quote_verified, data.get("value"))
-                
-                field_type = infer_field_type(field)
-                if field_type != "text" and data.get("value"):
-                    status = validate_field_format(field_type, data.get("value"), status)
-                
-                all_results.append({
-                    "field": field,
-                    "value": data.get("value"),
-                    "quote": data.get("quote"),
-                    "status": status,
-                    "field_type": field_type,
-                    "chunk_offset": chunk["start_offset"]
-                })
+        
+        if "error" in extraction:
+            continue
+        
+        # Pydantic devuelve {"fields": {...}}, iteramos sobre los campos validados
+        fields_data = extraction.get("fields", {})
+        
+        for field, data in fields_data.items():
+            # data es un dict con "value" y "quote" (validado por Pydantic)
+            value = data.get("value")
+            quote = data.get("quote")
+            
+            quote_verified = verify_quote(chunk["text"], quote, value)
+            status = determine_status(quote_verified, value)
+            
+            field_type = infer_field_type(field)
+            if field_type != "text" and value:
+                status = validate_field_format(field_type, value, status)
+            
+            all_results.append({
+                "field": field,
+                "value": value,
+                "quote": quote,
+                "status": status,
+                "field_type": field_type,
+                "chunk_offset": chunk["start_offset"]
+            })
 
     result = {
         "status": "pending_review",
@@ -77,25 +95,41 @@ def _extract_from_chunks(content: str, chunks: list, fields: list[str], **metada
     result.update(metadata)
     return result
 
+
 def infer_field_type(field_name: str) -> str:
+    """Infiere el tipo de campo según su nombre."""
     field_lower = field_name.lower()
-    if any(k in field_lower for k in ["fecha", "date", "deadline"]): return "date"
-    if any(k in field_lower for k in ["email", "correo"]): return "email"
-    if any(k in field_lower for k in ["url", "website", "link"]): return "url"
+    if any(k in field_lower for k in ["fecha", "date", "deadline"]):
+        return "date"
+    if any(k in field_lower for k in ["email", "correo"]):
+        return "email"
+    if any(k in field_lower for k in ["url", "website", "link"]):
+        return "url"
     return "text"
 
+
 def validate_field_format(field_type: str, value: str, current_status: str) -> str:
-    if current_status == "missing": return current_status
+    """Valida formato. (Link Rot detection está [PLANIFICADO] con guards de seguridad)."""
+    if current_status == "missing":
+        return current_status
+    
     is_valid = False
-    if field_type == "date": is_valid = validate_date(value)
-    elif field_type == "email": is_valid = validate_email(value)
-    elif field_type == "url": is_valid = validate_url(value)
-    else: return current_status
+    if field_type == "date":
+        is_valid = validate_date(value)
+    elif field_type == "email":
+        is_valid = validate_email(value)
+    elif field_type == "url":
+        is_valid = validate_url(value)
+    else:
+        return current_status
     
     return current_status if is_valid else "unverified"
 
+
 def main():
-    parser = argparse.ArgumentParser(description="MASF - Pipeline de extracción con revisión humana.")
+    parser = argparse.ArgumentParser(
+        description="MASF - Pipeline de extracción con revisión humana."
+    )
     parser.add_argument("--input", type=str, help="Ruta a archivo local")
     parser.add_argument("--url", type=str, help="URL de la fuente")
     parser.add_argument("--fields", nargs="+", help="Campos a extraer")
@@ -105,9 +139,13 @@ def main():
 
     fields = args.fields or ["nombre", "monto", "fecha", "website", "email"]
     
-    if args.input: result = process_local_file(args.input, fields)
-    elif args.url: result = process_source(args.url, fields)
-    else: parser.print_help(); sys.exit(1)
+    if args.input:
+        result = process_local_file(args.input, fields)
+    elif args.url:
+        result = process_source(args.url, fields)
+    else:
+        parser.print_help()
+        sys.exit(1)
 
     if "error" in result:
         print(f"Error: {result['error']}")
@@ -120,6 +158,7 @@ def main():
     
     print(f"✅ Borrador generado: {draft_path}")
     print("⚠️ Pendiente de revisión humana antes de publicar.")
+
 
 if __name__ == "__main__":
     main()

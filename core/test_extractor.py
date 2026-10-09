@@ -12,8 +12,8 @@ def test_extract_data_success():
     with patch('core.extractor.requests.post', return_value=mock_response):
         result = extract_data("texto de prueba", ["deadline"])
         
-    assert result["deadline"]["value"] == "15 marzo"
-    assert result["deadline"]["quote"] == "plazo: 15 marzo"
+    assert result["fields"]["deadline"]["value"] == "15 marzo"
+    assert result["fields"]["deadline"]["quote"] == "plazo: 15 marzo"
 
 def test_extract_data_error():
     """Simula que Ollama falla o no está corriendo."""

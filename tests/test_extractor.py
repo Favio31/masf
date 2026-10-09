@@ -61,7 +61,8 @@ class TestExtractDataRespuestaValida:
         resultado = extract_data("Juan es un ciclista", ["nombre"])
 
         assert isinstance(resultado, dict)
-        assert "nombre" in resultado
+        assert "fields" in resultado
+        assert "nombre" in resultado["fields"]
 
     @patch("core.extractor.requests.post")
     def test_respuesta_vacia(self, mock_post):

@@ -1,0 +1,48 @@
+{
+  "status": "pending_review",
+  "human_approved": false,
+  "created_at": "2026-10-09T01:38:03.947674+00:00",
+  "fields": [
+    {
+      "field": "nombre",
+      "value": "PeopleForBikes Industry Community Grant Program",
+      "quote": "PeopleForBikes’ Industry Community Grant Program is accepting applications by invitation only.",
+      "status": "unverified",
+      "field_type": "text",
+      "chunk_offset": 0
+    },
+    {
+      "field": "monto",
+      "value": "3.5 million",
+      "quote": "Our investments total more than $3.5 million",
+      "status": "verified",
+      "field_type": "text",
+      "chunk_offset": 0
+    },
+    {
+      "field": "fecha",
+      "value": "",
+      "quote": "",
+      "status": "missing",
+      "field_type": "date",
+      "chunk_offset": 0
+    },
+    {
+      "field": "website",
+      "value": "peopleforbikes.org",
+      "quote": "info@peopleforbikes.org",
+      "status": "unverified",
+      "field_type": "url",
+      "chunk_offset": 0
+    },
+    {
+      "field": "email",
+      "value": "info@peopleforbikes.org",
+      "quote": "info@peopleforbikes.org",
+      "status": "verified",
+      "field_type": "email",
+      "chunk_offset": 0
+    }
+  ],
+  "source_url": "https://www.peopleforbikes.org/grants"
+}
