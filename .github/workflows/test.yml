@@ -10,6 +10,9 @@ jobs:
   test:
     runs-on: windows-latest
     
+    env:
+      PYTHONIOENCODING: utf-8
+    
     steps:
     - uses: actions/checkout@v4
     
@@ -30,5 +33,3 @@ jobs:
     - name: Test Scout mode
       run: |
         python -m core.main --scout --profile sponsors --type project
-
-# Trigger manual para activar workflow
