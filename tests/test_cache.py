@@ -8,9 +8,16 @@ import logging
 from unittest.mock import MagicMock, patch
 import pytest
 from core import cache as cache_module
-from core.cache import key_for_url, get_cached, store, invalidate, purge_expired, cache_size, metrics, reset_metrics
+from core.cache import FetchCache, cache_key, normalize_url
 from core.fetcher import fetch_source
 URL = "https://sportdharma.com/articulo"
+class FakeClock:
+    def __init__(self, start: float = 1_000_000.0):
+        self.now = start
+    def __call__(self) -> float:
+        return self.now
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
 def make_result(content: str = "Contenido de prueba " * 20, url: str = URL, method: str = "requests") -> dict:
     return {
         "content": content,
@@ -19,230 +26,259 @@ def make_result(content: str = "Contenido de prueba " * 20, url: str = URL, meth
         "source_url": url,
         "method": method,
     }
-class TestKeyForUrl:
+@pytest.fixture
+def clock():
+    return FakeClock()
+@pytest.fixture
+def cache(tmp_path, clock):
+    return FetchCache(cache_dir=tmp_path / "cache", ttl_seconds=3600, clock=clock)
+def mock_http(text: str = "Contenido de prueba " * 20) -> MagicMock:
+    response = MagicMock()
+    response.text = text
+    response.raise_for_status = MagicMock()
+    return response
+class TestKeys:
+    def test_fragmento_y_mayusculas_de_host_no_cambian_la_clave(self):
+        assert cache_key("HTTPS://SportDharma.com/a?x=1#seccion") == cache_key("https://sportdharma.com/a?x=1")
+    def test_query_y_path_si_cambian_la_clave(self):
+        assert cache_key("https://sportdharma.com/a?x=1") != cache_key("https://sportdharma.com/a?x=2")
+        assert cache_key("https://sportdharma.com/a") != cache_key("https://sportdharma.com/b")
     def test_clave_es_sha256_hex(self):
-        url = "https://sportdharma.com/articulo"
-        esperado = hashlib.sha256(url.encode("utf-8")).hexdigest()
-        assert key_for_url(url) == esperado
-    def test_clave_determinista(self):
-        assert key_for_url("https://a.com") == key_for_url("https://a.com")
-        assert key_for_url("https://a.com/x") != key_for_url("https://a.com/y")
-    def test_path_traversal_neutralizado(self):
-        url = "https://sportdharma.com/../../etc/passwd"
-        path = cache_module._entry_path(key_for_url(url))
-        assert path.name.endswith(".json")
-        assert set(path.stem) <= set("0123456789abcdef")
-        assert "/" not in path.name and "\\" not in path.name
+        key = cache_key(URL)
+        assert len(key) == 64 and int(key, 16) >= 0
+        assert key == hashlib.sha256(normalize_url(URL).encode()).hexdigest()
 class TestHitMiss:
-    def test_miss_si_cache_vacio(self, cache_dir):
-        assert get_cached("https://sportdharma.com/a") is None
-        assert metrics()["misses"] == 1
-    def test_hit_tras_store(self, cache_dir, fetch_result_factory):
-        url = "https://sportdharma.com/a"
-        resultado = fetch_result_factory()
-        assert store(url, resultado) is True
-        assert get_cached(url) == resultado
-        assert metrics()["hits"] == 1
-    def test_resultado_cacheado_es_copia_independiente(self, cache_dir, fetch_result_factory):
-        url = "https://sportdharma.com/a"
-        store(url, fetch_result_factory())
-        copia = get_cached(url)
-        copia["content"] = "alterado"
-        assert get_cached(url)["content"] != "alterado"
-    def test_urls_distintas_no_colisionan(self, cache_dir, fetch_result_factory):
-        store("https://sportdharma.com/a", fetch_result_factory("AAA " * 30))
-        store("https://sportdharma.com/b", fetch_result_factory("BBB " * 30))
-        assert get_cached("https://sportdharma.com/a")["content"] == "AAA " * 30
-        assert get_cached("https://sportdharma.com/b")["content"] == "BBB " * 30
+    def test_miss_cuando_esta_vacio(self, cache):
+        assert cache.get(URL) is None
+        stats = cache.stats()
+        assert (stats["hits"], stats["misses"], stats["lookups"]) == (0, 1, 1)
+        assert stats["hit_rate"] == 0.0 and stats["miss_rate"] == 1.0
+    def test_put_y_get_devuelven_el_mismo_dict(self, cache):
+        result = make_result()
+        assert cache.put(URL, result) is True
+        assert cache.get(URL) == result
+    def test_get_devuelve_copia(self, cache):
+        cache.put(URL, make_result())
+        first = cache.get(URL)
+        first["content"] = "mutado"
+        assert cache.get(URL)["content"] != "mutado"
+    def test_urls_distintas_no_se_mezclan(self, cache):
+        other = "https://sportdharma.com/otro"
+        cache.put(URL, make_result("A " * 100))
+        assert cache.get(other) is None
+    def test_no_cachea_errores_ni_dicts_incompletos(self, cache):
+        assert cache.put(URL, {"error": "Dominio no permitido"}) is False
+        assert cache.put(URL, {"content": "x"}) is False
+        assert cache.stats()["entries"] == 0
+    def test_hit_rate_sin_consultas_es_cero(self, cache):
+        assert cache.stats()["hit_rate"] == 0.0
 class TestTTL:
-    def test_ttl_1_seguro_expira(self, cache_dir, fetch_result_factory):
-        url = "https://sportdharma.com/ttl"
-        t0 = 1_000_000.0
-        store(url, fetch_result_factory(), ttl=1, now=t0)
-        assert get_cached(url, ttl=1, now=t0 + 0.9) is not None
-        assert get_cached(url, ttl=1, now=t0 + 1.0) is None
-        assert get_cached(url, ttl=1, now=t0 + 1.1) is None
-    def test_ttl_default_24h_no_expira_antes(self, cache_dir, fetch_result_factory):
-        url = "https://sportdharma.com/def"
-        t0 = 1_000_000.0
-        store(url, fetch_result_factory(), now=t0)
-        assert get_cached(url, now=t0 + 23 * 3600) is not None
-        assert get_cached(url, now=t0 + 24 * 3600 + 1) is None
-    def test_ttl_cero_expira_siempre(self, cache_dir, fetch_result_factory):
-        url = "https://sportdharma.com/cero"
-        t0 = 1_000_000.0
-        store(url, fetch_result_factory(), now=t0)
-        assert get_cached(url, ttl=0, now=t0) is None
-    def test_entrada_expirada_se_elimina_del_disco(self, cache_dir, fetch_result_factory):
-        url = "https://sportdharma.com/exp"
-        t0 = 1_000_000.0
-        store(url, fetch_result_factory(), now=t0)
-        get_cached(url, now=t0 + 999_999)
-        assert list(cache_dir.glob("*.json")) == []
-class TestInvalidacionPorHash:
-    def test_cambio_de_hash_se_detecta(self, cache_dir, fetch_result_factory):
-        url = "https://sportdharma.com/change"
-        store(url, fetch_result_factory("Version 1 " * 30))
-        store(url, fetch_result_factory("Version 2 " * 30))
-        m = metrics()
-        assert m["content_changes"] == 1
-        assert get_cached(url)["content"] == "Version 2 " * 30
-    def test_mismo_hash_no_cuenta_cambio(self, cache_dir, fetch_result_factory):
-        url = "https://sportdharma.com/same"
-        store(url, fetch_result_factory())
-        store(url, fetch_result_factory())
-        assert metrics()["content_changes"] == 0
-    def test_invalidate_manual(self, cache_dir, fetch_result_factory):
-        url = "https://sportdharma.com/inv"
-        store(url, fetch_result_factory())
-        assert invalidate(url) is True
-        assert get_cached(url) is None
-        assert invalidate(url) is False
-    def test_entrada_corrupta_se_descarta(self, cache_dir, fetch_result_factory):
-        url = "https://sportdharma.com/corrupt"
-        store(url, fetch_result_factory())
-        path = cache_module._entry_path(key_for_url(url))
-        path.write_text("{json roto", encoding="utf-8")
-        assert get_cached(url) is None
-        assert metrics()["evictions"] >= 1
-        assert not path.exists()
-class TestEscritura:
-    def test_no_guarda_resultados_con_error(self, cache_dir):
-        assert store("https://sportdharma.com/err", {"error": "Respuesta muy grande"}) is False
-        assert cache_size() == 0
-    def test_escritura_atomica_sin_tmp_residuales(self, cache_dir, fetch_result_factory):
-        store("https://sportdharma.com/atomic", fetch_result_factory())
-        assert [p.name for p in cache_dir.glob("*.tmp")] == []
-    def test_url_se_persiste_para_auditoria(self, cache_dir, fetch_result_factory):
-        url = "https://sportdharma.com/meta"
-        store(url, fetch_result_factory())
-        path = cache_module._entry_path(key_for_url(url))
+    def test_hit_antes_del_ttl(self, cache, clock):
+        cache.put(URL, make_result())
+        clock.advance(3599)
+        assert cache.get(URL) is not None
+    def test_miss_exactamente_en_el_ttl_y_purge_la_elimina(self, cache, clock):
+        cache.put(URL, make_result())
+        clock.advance(3600)
+        assert cache.get(URL) is None
+        stats = cache.stats()
+        assert stats["expired"] == 1 and stats["misses"] == 1
+        assert stats["entries"] == 1
+        assert cache.purge_expired() == 1
+        assert cache.stats()["entries"] == 0
+    def test_ttl_configurable_por_constructor(self, tmp_path, clock):
+        short = FetchCache(cache_dir=tmp_path / "c", ttl_seconds=10, clock=clock)
+        short.put(URL, make_result())
+        clock.advance(11)
+        assert short.get(URL) is None
+    def test_ttl_default_es_24h(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("MASF_CACHE_TTL_SECONDS", raising=False)
+        assert FetchCache(cache_dir=tmp_path).ttl_seconds == 24 * 3600
+    def test_ttl_por_variable_de_entorno(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("MASF_CACHE_TTL_SECONDS", "120")
+        assert FetchCache(cache_dir=tmp_path).ttl_seconds == 120
+    def test_ttl_invalido_en_entorno_usa_default(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("MASF_CACHE_TTL_SECONDS", "abc")
+        assert FetchCache(cache_dir=tmp_path).ttl_seconds == 24 * 3600
+    def test_entrada_del_futuro_se_trata_como_vencida(self, cache, clock):
+        cache.put(URL, make_result())
+        clock.advance(-500)
+        assert cache.get(URL) is None
+    def test_purge_expired_solo_borra_vencidas(self, cache, clock):
+        cache.put("https://sportdharma.com/vieja", make_result("v " * 100))
+        clock.advance(3000)
+        cache.put("https://sportdharma.com/nueva", make_result("n " * 100))
+        clock.advance(700)
+        assert cache.purge_expired() == 1
+        assert cache.get("https://sportdharma.com/nueva") is not None
+        assert cache.get("https://sportdharma.com/vieja") is None
+class TestInvalidacion:
+    def _entry_path(self, cache):
+        return cache.cache_dir / f"{cache_key(URL)}.json"
+    def test_hash_no_coincide_con_el_contenido(self, cache):
+        cache.put(URL, make_result())
+        path = self._entry_path(cache)
         entry = json.loads(path.read_text(encoding="utf-8"))
-        assert entry["url"] == url
-        assert entry["content_hash"] == fetch_result_factory()["content_hash"]
+        entry["result"]["content"] = "contenido manipulado " * 10
+        path.write_text(json.dumps(entry), encoding="utf-8")
+        assert cache.get(URL) is None
+        assert cache.stats()["invalidated"] == 1
+        assert not path.exists()
+    def test_json_corrupto(self, cache):
+        cache.put(URL, make_result())
+        self._entry_path(cache).write_text("{no es json", encoding="utf-8")
+        assert cache.get(URL) is None
+        assert cache.stats()["invalidated"] == 1
+    def test_version_de_cache_incompatible(self, cache):
+        cache.put(URL, make_result())
+        path = self._entry_path(cache)
+        entry = json.loads(path.read_text(encoding="utf-8"))
+        entry["cache_version"] = 999
+        path.write_text(json.dumps(entry), encoding="utf-8")
+        assert cache.get(URL) is None
+    def test_entrada_de_otra_url_con_misma_clave_se_rechaza(self, cache):
+        cache.put(URL, make_result())
+        path = self._entry_path(cache)
+        entry = json.loads(path.read_text(encoding="utf-8"))
+        entry["url"] = "https://sportdharma.com/otra"
+        path.write_text(json.dumps(entry), encoding="utf-8")
+        assert cache.get(URL) is None
+    def test_hash_distinto_al_refrescar_reemplaza_y_cuenta_el_cambio(self, cache):
+        cache.put(URL, make_result("version uno " * 20))
+        cache.put(URL, make_result("version dos " * 20))
+        assert cache.stats()["content_changed"] == 1
+        assert cache.get(URL)["content"].startswith("version dos")
+    def test_mismo_hash_al_refrescar_no_cuenta_cambio(self, cache):
+        cache.put(URL, make_result())
+        cache.put(URL, make_result())
+        assert cache.stats()["content_changed"] == 0
+    def test_invalidate_manual_y_clear(self, cache):
+        cache.put(URL, make_result())
+        cache.put("https://sportdharma.com/b", make_result("b " * 100))
+        assert cache.invalidate(URL) is True
+        assert cache.invalidate(URL) is False
+        assert cache.clear() == 1
+        assert cache.stats()["entries"] == 0
 class TestMetricas:
-    def test_hit_rate_miss_rate(self, cache_dir, fetch_result_factory):
-        url = "https://sportdharma.com/rate"
-        get_cached(url)
-        get_cached(url)
-        store(url, fetch_result_factory())
-        get_cached(url)
-        get_cached(url)
-        m = metrics()
-        assert m["hits"] == 2 and m["misses"] == 2
-        assert m["hit_rate"] == 0.5 and m["miss_rate"] == 0.5
-        assert m["writes"] == 1
-    def test_hit_rate_90_en_segunda_ejecucion(self, cache_dir, fetch_result_factory):
-        urls = [f"https://sportdharma.com/p{i}" for i in range(10)]
-        for u in urls:
-            store(u, fetch_result_factory())
-        reset_metrics()
-        for _ in range(2):
-            for u in urls:
-                get_cached(u)
-        assert metrics()["hit_rate"] > 0.9
-    def test_size_cuenta_entradas(self, cache_dir, fetch_result_factory):
-        assert cache_size() == 0
-        for i in range(3):
-            store(f"https://sportdharma.com/s{i}", fetch_result_factory())
-        assert metrics()["size"] == 3
-    def test_reset_metrics(self, cache_dir, fetch_result_factory):
-        store("https://sportdharma.com/r", fetch_result_factory())
-        get_cached("https://sportdharma.com/r")
-        reset_metrics()
-        m = metrics()
-        assert m["hits"] == 0 and m["misses"] == 0 and m["writes"] == 0
-class TestPurgeYRobustez:
-    def test_purge_expired_borra_solo_expiradas(self, cache_dir, fetch_result_factory):
-        t0 = 1_000_000.0
-        store("https://sportdharma.com/old", fetch_result_factory("OLD " * 30), now=t0)
-        store("https://sportdharma.com/new", fetch_result_factory("NEW " * 30), now=t0 + 170)
-        purged = purge_expired(ttl=50, now=t0 + 200)
-        assert purged == 1
-        assert get_cached("https://sportdharma.com/old") is None
-        assert get_cached("https://sportdharma.com/new", now=t0 + 200) is not None
-    def test_store_tolera_cache_dir_inexistente(self, tmp_path, monkeypatch, fetch_result_factory):
-        from core import cache
-        monkeypatch.setattr(cache, "CACHE_DIR", tmp_path / "aun" / "inexistente")
-        reset_metrics()
-        assert store("https://sportdharma.com/deep", fetch_result_factory()) is True
-class TestIntegracionFetcher:
-    @pytest.fixture
-    def fetcher(self):
-        from core import fetcher
-        return fetcher
-    @pytest.fixture
-    def mock_get(self, monkeypatch, fetch_result_factory):
-        from unittest.mock import MagicMock
-        import requests as requests_lib
-        llamadas = {"n": 0}
-        def _fake_get(*args, **kwargs):
-            llamadas["n"] += 1
-            resp = MagicMock()
-            resp.text = "Contenido suficiente para pasar el umbral " * 20
-            resp.status_code = 200
-            resp.raise_for_status = MagicMock()
-            return resp
-        monkeypatch.setattr(requests_lib, "get", _fake_get)
-        return llamadas
-    def test_segunda_llamada_es_hit_sin_request(self, cache_dir, fetcher, mock_get, fetch_result_factory):
-        url = "https://sportdharma.com/int"
-        r1 = fetcher.fetch_source(url)
-        assert r1["method"] == "requests"
-        for _ in range(19):
-            r2 = fetcher.fetch_source(url)
-            assert r2["content"] == r1["content"]
-            assert r2["content_hash"] == r1["content_hash"]
-        assert mock_get["n"] == 1
-        m = metrics()
-        assert m["hits"] == 19 and m["misses"] == 1
-        assert m["hit_rate"] > 0.9
-    def test_use_cache_false_bypasea_cache(self, cache_dir, fetcher, mock_get, fetch_result_factory):
-        url = "https://sportdharma.com/nocache"
-        fetcher.fetch_source(url, use_cache=False)
-        fetcher.fetch_source(url, use_cache=False)
-        assert mock_get["n"] == 2
-        assert cache_size() == 0
-    def test_flag_default_es_true(self, cache_dir, fetcher, mock_get):
-        import inspect
-        sig = inspect.signature(fetcher.fetch_source)
-        assert sig.parameters["use_cache"].default is True
-    def test_api_de_fetch_source_no_cambia(self, fetcher):
-        claves_contrato = {"content", "content_hash", "retrieved_at", "source_url", "method"}
-        claves_error = {"error"}
-        r = fetcher.fetch_source("https://dominio-malicioso.com/x")
-        assert set(r.keys()) == claves_error
-    def test_allowlist_se_aplica_antes_del_cache(self, cache_dir, fetcher, mock_get, fetch_result_factory):
-        url_mala = "https://evil.com/contenido"
-        store(url_mala, fetch_result_factory())
-        r = fetcher.fetch_source(url_mala)
-        assert "error" in r
-        assert mock_get["n"] == 0
-    def test_fallo_de_cache_no_rompe_el_fetch(self, cache_dir, fetcher, mock_get, fetch_result_factory, monkeypatch):
-        from core import cache as cache_mod
-        def _boom(*a, **k):
-            raise OSError("disco lleno")
-        monkeypatch.setattr(cache_mod, "store", _boom)
-        r = fetcher.fetch_source("https://sportdharma.com/fail")
-        assert "error" not in r
-        assert r["method"] == "requests"
-    def test_contenido_cambiado_actualiza_cache(self, cache_dir, fetcher, monkeypatch, fetch_result_factory):
-        import requests as requests_lib
-        from unittest.mock import MagicMock
-        version = {"v": 1}
-        def _fake_get(*args, **kwargs):
-            resp = MagicMock()
-            resp.text = f"Version {version['v']} del sitio con contenido largo " * 20
-            resp.status_code = 200
-            resp.raise_for_status = MagicMock()
-            return resp
-        monkeypatch.setattr(requests_lib, "get", _fake_get)
-        url = "https://sportdharma.com/dyn"
-        r1 = fetcher.fetch_source(url)
-        version["v"] = 2
-        r2 = fetcher.fetch_source(url)
-        assert r2["content_hash"] == r1["content_hash"]
-        invalidate(url)
-        r3 = fetcher.fetch_source(url)
-        assert r3["content_hash"] != r1["content_hash"]
-        assert get_cached(url)["content_hash"] == r3["content_hash"]
+    def test_tamano_y_entradas(self, cache):
+        assert cache.stats()["size_bytes"] == 0
+        cache.put(URL, make_result())
+        stats = cache.stats()
+        assert stats["entries"] == 1
+        assert stats["size_bytes"] == (cache.cache_dir / f"{cache_key(URL)}.json").stat().st_size > 0
+    def test_hit_rate_y_miss_rate(self, cache):
+        cache.get(URL)
+        cache.put(URL, make_result())
+        for _ in range(3):
+            cache.get(URL)
+        stats = cache.stats()
+        assert stats["hit_rate"] == pytest.approx(0.75)
+        assert stats["miss_rate"] == pytest.approx(0.25)
+    def test_reset_metrics_no_borra_entradas(self, cache):
+        cache.put(URL, make_result())
+        cache.get(URL)
+        cache.reset_metrics()
+        stats = cache.stats()
+        assert stats["hits"] == 0 and stats["stores"] == 0 and stats["entries"] == 1
+    def test_escritura_atomica_no_deja_temporales(self, cache):
+        cache.put(URL, make_result())
+        assert [p.name for p in cache.cache_dir.iterdir() if p.name.startswith(".tmp-")] == []
+    def test_fallo_de_escritura_no_rompe(self, tmp_path, clock):
+        blocker = tmp_path / "ocupado"
+        blocker.write_text("soy un archivo, no un directorio")
+        broken = FetchCache(cache_dir=blocker, ttl_seconds=60, clock=clock)
+        assert broken.put(URL, make_result()) is False
+        assert broken.get(URL) is None
+class TestLogging:
+    def test_eventos_son_json_estructurado(self, cache, caplog):
+        with caplog.at_level(logging.INFO, logger="masf.cache"):
+            cache.get(URL)
+            cache.put(URL, make_result())
+            cache.get(URL)
+        events = [json.loads(r.getMessage()) for r in caplog.records if r.name == "masf.cache"]
+        assert [e["event"] for e in events] == ["cache_miss", "cache_store", "cache_hit"]
+        assert all(e["url"] == URL for e in events)
+        assert events[0]["reason"] == "absent"
+class TestFetchSourceConCache:
+    @patch("core.fetcher.requests.get")
+    def test_segunda_llamada_no_toca_la_red_y_devuelve_el_mismo_dict(self, mock_get, cache):
+        mock_get.return_value = mock_http()
+        first = fetch_source(URL, use_cache=True, cache=cache)
+        second = fetch_source(URL, use_cache=True, cache=cache)
+        assert mock_get.call_count == 1
+        assert second == first
+        assert set(second) == {"content", "content_hash", "retrieved_at", "source_url", "method"}
+    @patch("core.fetcher.requests.get")
+    def test_sin_cache_siempre_descarga(self, mock_get, cache):
+        mock_get.return_value = mock_http()
+        fetch_source(URL, use_cache=False, cache=cache)
+        fetch_source(URL, use_cache=False, cache=cache)
+        assert mock_get.call_count == 2
+        assert cache.stats()["entries"] == 0
+    @patch("core.fetcher.requests.get")
+    def test_hit_rate_mayor_a_90_porciento_en_ejecuciones_repetidas(self, mock_get, cache):
+        mock_get.return_value = mock_http()
+        fetch_source(URL, use_cache=True, cache=cache)
+        cache.reset_metrics()
+        for _ in range(10):
+            fetch_source(URL, use_cache=True, cache=cache)
+        assert cache.stats()["hit_rate"] == 1.0
+        assert mock_get.call_count == 1
+    @patch("core.fetcher.requests.get")
+    def test_hit_rate_acumulado_de_20_ejecuciones(self, mock_get, cache):
+        mock_get.return_value = mock_http()
+        for _ in range(20):
+            fetch_source(URL, use_cache=True, cache=cache)
+        assert cache.stats()["hit_rate"] == pytest.approx(0.95)
+    @patch("core.fetcher.requests.get")
+    def test_tras_el_ttl_vuelve_a_descargar(self, mock_get, cache, clock):
+        mock_get.return_value = mock_http()
+        fetch_source(URL, use_cache=True, cache=cache)
+        clock.advance(3600)
+        fetch_source(URL, use_cache=True, cache=cache)
+        assert mock_get.call_count == 2
+    @patch("core.fetcher.requests.get")
+    def test_contenido_cambiado_en_origen_se_detecta_tras_el_ttl(self, mock_get, cache, clock):
+        mock_get.return_value = mock_http("Primera version del articulo " * 10)
+        first = fetch_source(URL, use_cache=True, cache=cache)
+        clock.advance(3600)
+        mock_get.return_value = mock_http("Segunda version del articulo " * 10)
+        second = fetch_source(URL, use_cache=True, cache=cache)
+        assert first["content_hash"] != second["content_hash"]
+        assert cache.stats()["content_changed"] == 1
+    @patch("core.fetcher.requests.get")
+    def test_errores_no_se_cachean(self, mock_get, cache):
+        import requests as real_requests
+        mock_get.side_effect = real_requests.exceptions.ConnectionError("down")
+        with patch("core.fetcher.fetch_with_playwright", return_value={"error": "Playwright fallo"}):
+            result = fetch_source(URL, use_cache=True, cache=cache)
+        assert "error" in result
+        assert cache.stats()["entries"] == 0
+    @patch("core.fetcher.fetch_with_playwright")
+    @patch("core.fetcher.requests.get")
+    def test_resultado_de_playwright_tambien_se_cachea(self, mock_get, mock_pw, cache):
+        mock_get.return_value = mock_http("corto")
+        mock_pw.return_value = make_result("Contenido renderizado por JS " * 10, method="playwright")
+        first = fetch_source(URL, use_cache=True, cache=cache)
+        second = fetch_source(URL, use_cache=True, cache=cache)
+        assert first["method"] == second["method"] == "playwright"
+        mock_pw.assert_called_once()
+    @patch("core.fetcher.requests.get")
+    def test_el_allowlist_se_valida_antes_de_leer_el_cache(self, mock_get, cache):
+        evil = "https://evil.com/x"
+        cache.put(evil, make_result(url=evil))
+        result = fetch_source(evil, use_cache=True, cache=cache)
+        assert "error" in result and "no permitido" in result["error"]
+        mock_get.assert_not_called()
+    @patch("core.fetcher.requests.get")
+    def test_cache_por_defecto_usa_variable_de_entorno(self, mock_get, tmp_path, monkeypatch):
+        monkeypatch.setenv("MASF_CACHE_DIR", str(tmp_path / "envcache"))
+        cache_module.reset_default_cache()
+        try:
+            mock_get.return_value = mock_http()
+            fetch_source(URL, use_cache=True)
+            fetch_source(URL, use_cache=True)
+            assert mock_get.call_count == 1
+            assert any((tmp_path / "envcache").glob("*.json"))
+        finally:
+            cache_module.reset_default_cache()

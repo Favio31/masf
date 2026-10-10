@@ -1,27 +1,29 @@
 ﻿"""Fixtures compartidos para la suite de tests (cache y fetcher).
-isolated_cache (autouse): TODOS los tests, incluidos los preexistentes
-del fetcher, quedan aislados del filesystem real: CACHE_DIR apunta a
-tmp_path y las metricas se resetean antes y despues de cada test.
-cache_dir: alias explicito para los tests que necesitan la ruta.
-fetch_result_factory: fabrica de resultados fetch_source validos.
+Usa la API de Genspark: FetchCache, get_default_cache(), reset_default_cache().
 """
 import sys
 from pathlib import Path
 import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
 @pytest.fixture(autouse=True)
 def isolated_cache(tmp_path, monkeypatch):
-    from core import cache
+    """Redirige el cache default a tmp_path (los tests NUNCA tocan el disco real)."""
+    from core import cache as cache_module
     target = tmp_path / "cache"
-    monkeypatch.setattr(cache, "CACHE_DIR", target)
-    cache.reset_metrics()
+    monkeypatch.setenv("MASF_CACHE_DIR", str(target))
+    cache_module.reset_default_cache()
     yield target
-    cache.reset_metrics()
+    cache_module.reset_default_cache()
+
 @pytest.fixture
 def cache_dir(isolated_cache):
+    """Ruta aislada del cache para el test en curso."""
     return isolated_cache
+
 @pytest.fixture
 def fetch_result_factory():
+    """Fabrica de resultados de fetch_source con content_hash real."""
     import hashlib
     def _make(content: str = "Contenido de prueba " * 20, method: str = "requests"):
         return {
