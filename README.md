@@ -21,3 +21,23 @@ python -m core.main --url https://ejemplo.com --fields nombre_programa requisito
 2. **Human-in-the-Loop**: El humano decide qué es ético.
 3. **Seguridad**: `fetcher.py` usa una `ALLOWLIST` estricta.
 4. **Grounding Obligatorio**: Sin citas literales, no hay dato válido.
+
+
+## Motor de Extraccion Dual
+
+El MASF utiliza un sistema inteligente de doble motor:
+
+1. **Requests** (rapido, ~milisegundos): Para sitios que sirven HTML estatico suficiente (>150 chars).
+2. **Playwright** (fallback, ~2-4s): Se activa automaticamente cuando:
+   - El sitio devuelve un "JS shell" vacio (<150 chars)
+   - `requests` falla por timeout o bloqueo de bot
+
+Playwright lanza Chromium headless, espera el renderizado JavaScript y extrae el contenido completo.
+
+### Ejemplo de funcionamiento
+
+| Sitio | Metodo | Contenido |
+|-------|--------|-----------|
+| GitHub | Playwright | 6204 chars |
+| Devinci | Playwright | 7450 chars |
+| Bikepacking | Requests | 7905 chars |
