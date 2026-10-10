@@ -1,4 +1,4 @@
-"""
+﻿"""
 Core fetcher.
 Descarga fuentes con allowlist de dominios y guarda snapshots con hash SHA-256.
 Unico componente con acceso a red (Pilar 1).
@@ -23,6 +23,7 @@ ALLOWLIST = [
     "3t.bike",
     "bikepacking.com",
     "thetravelingvagabond.com",
+    "localhost",
 ]
 
 USER_AGENT = "SportDharma-MASF/1.0 (contact@sportdharmaecosystem.com)"
@@ -36,6 +37,9 @@ def is_domain_allowed(url: str) -> bool:
         domain = urlparse(url).netloc.lower()
         if domain.startswith("www."):
             domain = domain[4:]
+        # Remover puerto si existe (ej: localhost:8000 -> localhost)
+        if ":" in domain:
+            domain = domain.split(":")[0]
         return domain in ALLOWLIST
     except Exception:
         return False
@@ -63,7 +67,10 @@ def fetch_with_playwright(url: str) -> dict:
             if response is None or not response.ok:
                 browser.close()
                 return {"error": "Playwright fallo"}
+            # Esperar a que el JS dinámico se renderice
+            page.wait_for_timeout(2000)
             html = page.content()
+
             browser.close()
             content = clean_html(html)
             content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()

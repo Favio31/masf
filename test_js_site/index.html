@@ -1,0 +1,21 @@
+﻿<!DOCTYPE html>
+<html>
+<head><title>Test JS</title></head>
+<body>
+    <div id="app">Cargando...</div>
+    <script>
+        // Simular carga dinámica de contenido (como React/Vue)
+        setTimeout(() => {
+            document.getElementById("app").innerHTML = `
+                <h1>Contenido cargado con JavaScript</h1>
+                <p>Este texto solo aparece después de ejecutar JS</p>
+                <ul>
+                    <li>Item 1</li>
+                    <li>Item 2</li>
+                    <li>Item 3</li>
+                </ul>
+            `;
+        }, 1000);
+    </script>
+</body>
+</html>
