@@ -1,4 +1,4 @@
-"""
+﻿"""
 Core searcher.
 Módulo de búsqueda web gratuito y privado (0.00 OPEX) usando DDGS (DuckDuckGo Search).
 Recopila URLs y snippets para que el Revisor Humano evalúe las oportunidades.
@@ -77,7 +77,7 @@ def run_scout_profile(profile_path: str = "profiles/scout_spec.md", max_results_
     if not keywords_list:
         return [{"error": "No se encontraron keywords en el perfil."}]
 
-    print(f"🔍 Iniciando búsqueda con {len(keywords_list)} keywords...")
+    print(f"[BUSQUEDA] Iniciando búsqueda con {len(keywords_list)} keywords...")
     all_opportunities = []
 
     for kw in keywords_list:
@@ -88,7 +88,7 @@ def run_scout_profile(profile_path: str = "profiles/scout_spec.md", max_results_
                 r["search_keyword"] = kw
                 all_opportunities.append(r)
 
-    print(f"✅ Búsqueda completada. Se encontraron {len(all_opportunities)} resultados.")
+    print(f"[OK] Búsqueda completada. Se encontraron {len(all_opportunities)} resultados.")
     return all_opportunities
 
 
