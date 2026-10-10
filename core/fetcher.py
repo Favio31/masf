@@ -15,6 +15,13 @@ ALLOWLIST = [
     "sportdharma.com",
     "github.com",
     "peopleforbikes.org",
+    "openaffiliate.dev",  # Agregado por Scout
+    "freakingnomads.com",  # Agregado por Scout
+    "nomadglobal.com",     # Agregado por Scout
+"devinci.com",
+    "3t.bike",              # Agregado para embajadores
+    "bikepacking.com",      # Agregado para guía de sponsors
+    "thetravelingvagabond.com",  # Agregado para seguros
 ]
 
 USER_AGENT = "SportDharma-MASF/1.0 (contact@sportdharmaecosystem.com)"

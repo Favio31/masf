@@ -1,0 +1,50 @@
+{
+  "status": "pending_review",
+  "human_approved": false,
+  "type": "scout_search",
+  "created_at": "2026-10-09T07:21:24.785421+00:00",
+  "opportunities": [
+    {
+      "title": "",
+      "url": "",
+      "snippet": "",
+      "search_keyword": "cycling ambassador program\" OR \"bikepacking sponsorship\" OR \"independent athlete sponsor"
+    },
+    {
+      "title": "Best Debit Cards for International Travel - Freaking Nomads",
+      "url": "https://freakingnomads.com/best-debit-cards-for-international-travel/",
+      "snippet": "Jul 2, 2026 · Discover the top debit cards for international travel, featuring low fees, great exchange rates, and worldwide acceptance. Compare them in this guide.",
+      "search_keyword": "ethical travel debit card\" OR \"digital nomad banking no hidden fees\" OR \"tarjeta viajeros sin comisiones"
+    },
+    {
+      "title": "Best Debit Card for International Travel No Fees (2026)",
+      "url": "https://blog.mytripmoney.com/blog/best-debit-card-international-travel-no-fees",
+      "snippet": "Aug 24, 2026 · Looking for the best debit card for international travel with no fees? We tested dozens and found the real winners that save you money abroad.",
+      "search_keyword": "ethical travel debit card\" OR \"digital nomad banking no hidden fees\" OR \"tarjeta viajeros sin comisiones"
+    },
+    {
+      "title": "Nomad International Card: 100% digital with no annual fee",
+      "url": "https://www.nomadglobal.com/en/international-card",
+      "snippet": "The Nomad Card is an international debit card with no opening or monthly maintenance fees, being accepted in over 180 countries. You can use the virtual or physical version, and it also allows you to make free withdrawals at MoneyPass ATMs around the world!",
+      "search_keyword": "ethical travel debit card\" OR \"digital nomad banking no hidden fees\" OR \"tarjeta viajeros sin comisiones"
+    },
+    {
+      "title": "10 Best Affiliate Program Software Open Source Solutions ...",
+      "url": "https://www.scaleo.io/blog/affiliate-program-software-open-source-solutions/",
+      "snippet": "Jun 13, 2025 · Almost all affiliate programs are open-source software, making it possible for other programmers to develop plugins. With a plugin, the original system can be enriched with extra functionality.",
+      "search_keyword": "open source affiliate program\" OR \"privacy software affiliate"
+    },
+    {
+      "title": "GitHub - Affitor/open-affiliate: The open registry of ...",
+      "url": "https://github.com/Affitor/open-affiliate",
+      "snippet": "Apr 18, 2026 · OpenAffiliate is a community-driven, open-source registry of affiliate programs. Every program is stored as a YAML file in this repo, making it easy to contribute, review, and integrate.",
+      "search_keyword": "open source affiliate program\" OR \"privacy software affiliate"
+    },
+    {
+      "title": "OpenAffiliate — The Open Registry of Affiliate Programs",
+      "url": "https://openaffiliate.dev/",
+      "snippet": "Discover, compare, and integrate affiliate programs. Built for developers and AI agents. Open source, community-driven.",
+      "search_keyword": "open source affiliate program\" OR \"privacy software affiliate"
+    }
+  ]
+}
