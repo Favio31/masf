@@ -1,0 +1,16 @@
+{
+  "page": "fundador",
+  "lang": "pt",
+  "data": {
+    "translations": {
+      "titulo": "Fundador | SportDharma Ecosystem",
+      "subtitulo": "Cicloviajante · Fundador · Desenvolvedor"
+    },
+    "grounding_notes": [
+      "O texto original destaca uma jornada de 11 anos com 120.000 km percorridos em bicicleta em 84 países, simbolizando uma conexão profunda com a natureza e a mobilidade humana.",
+      "A criação do SportDharma surge da necessidade de ferramentas digitais autônomas, funcionando offline e sem rastreamento, voltadas para atletas e comunidades remotas.",
+      "O uso de termos como 'soberano' e 'offline-first' reforça a ideia de independência tecnológica e respeito à privacidade.",
+      "A tradução mantém o tom resiliente e humano, alinhado ao propósito espiritual e prático do ecossistema."
+    ]
+  }
+}

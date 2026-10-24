@@ -1,0 +1,17 @@
+{
+  "page": "fundador",
+  "lang": "fr",
+  "data": {
+    "translations": {
+      "titulo": "Fondateur | SportDharma Ecosystem",
+      "subtitulo": "Voyageur cycliste · Fondateur · Développeur",
+      "bio": "Pendant 11 ans, j'ai parcouru 120 000 km à vélo dans 84 pays. SportDharma est né de la nécessité de outils numériques souverains, préférant le mode hors ligne et sans suivi, pour les sportifs et les communautés éloignées."
+    },
+    "grounding_notes": [
+      "La traduction respecte le ton résilient et humain requis.",
+      "Les termes techniques comme 'offline-first' sont rendus par 'préférant le mode hors ligne' pour maintenir la clarté sans utiliser des expressions anglo-saxonnes.",
+      "L'expression 'soberanes' est adaptée à 'souverains' pour un sens plus naturel en français.",
+      "Le contexte de 'communautés remotas' est traduit par 'communautés éloignées' pour une fluidité linguistique et une cohérence avec le ton spirituel et ouvert du projet."
+    ]
+  }
+}
