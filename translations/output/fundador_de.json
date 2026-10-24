@@ -2,15 +2,8 @@
   "page": "fundador",
   "lang": "de",
   "data": {
-    "translations": {
-      "titulo": "Founder | SportDharma Ecosystem",
-      "subtitulo": "Ciclovagante · Founder · Developer",
-      "bio": "Durante 11 años recorri 120.000 km en bicicleta por 84 países. SportDharma surgió de la necesidad de herramientas digitales soberanas, offline-first y sin seguimiento para deportistas y comunidades remotas."
-    },
-    "grounding_notes": [
-      "El término 'ciclovagante' refleja el viaje espontáneo y libre de rutas, alineado con el espíritu de exploración y conexión con la naturaleza.",
-      "La frase 'herramientas digitales soberanas, offline-first y sin seguimiento' se mantiene fiel al enfoque de autonomía, privacidad y respeto a la comunidad.",
-      "El uso de 'recorri' en lugar de 'recorri' mantiene el tono humano y natural, evitando formalidades excesivas."
-    ]
+    "title": "Founder | SportDharma Ecosystem",
+    "subtitle": "Ciclovagante · Founder · Developer",
+    "bio": "Durante 11 años recorri 120.000 km en bicicleta por 84 países. SportDharma surgió de la necesidad de herramientas digitales soberanas, primero fuera de red y sin seguimiento, para deportistas y comunidades remotas."
   }
 }

@@ -11,7 +11,7 @@ Temas de esencia: Deporte, Salud, Espiritualidad, Open Source, Viajes, Educació
 REGLAS:
 1. NUNCA uses "Edge AI".
 2. Tono: Resiliente, soberano, humano.
-3. Devuelve SOLO JSON válido: {"translations": {"titulo": "...", "subtitulo": "..."}, "grounding_notes": ["..."]}
+3. Devuelve SOLO un objeto JSON válido, sin comillas externas ni bloques de código markdown.
 """
 
 TEXT_TO_TRANSLATE = """
@@ -33,15 +33,23 @@ def translate(lang):
 
 os.makedirs("translations/output", exist_ok=True)
 
-for lang in ['en', 'fr', 'pt', 'de']:
+# AGREGADO: Italiano ('it') para completar los 6 idiomas
+for lang in ['en', 'fr', 'pt', 'de', 'it']:
     print(f"🌐 Traduciendo a {lang}...")
     res = translate(lang)
-    # Limpieza básica de markdown
+    
+    # Limpieza robusta de markdown y comillas externas (común en LLMs)
     res = res.replace("```json", "").replace("```", "").strip()
+    if res.startswith('"') and res.endswith('"'):
+        res = res[1:-1].replace('\\"', '"')
+    
     try:
         data = json.loads(res)
-    except:
-        data = {"raw": res, "error": "JSON inválido"}
+    except json.JSONDecodeError:
+        try:
+            data = json.loads(json.loads(res)) # Fallback para doble encoding
+        except:
+            data = {"raw": res, "error": "JSON inválido o mal formateado"}
     
     with open(f"translations/output/fundador_{lang}.json", "w", encoding="utf-8") as f:
         json.dump({"page": "fundador", "lang": lang, "data": data}, f, ensure_ascii=False, indent=2)
